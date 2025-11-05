@@ -20,6 +20,13 @@ contract DEMtToken is ERC20, ERC20Burnable, Pausable, AccessControl, EIP712 {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    /// @notice Offizielle Projekt-Webseite zur öffentlichen Referenz.
+    string public constant PROJECT_WEBSITE = "https://swap-pool.de";
+
+    /// @notice Whitepaper-Referenz für Transparenz des Bridge-Designs.
+    string public constant WHITEPAPER_URL =
+        "https://swap-pool.de/docs/DEMt_Bridge_Whitepaper_EN_DE_v2.pdf";
+
     // EIP-712 typehash für unseren Mint-Request
     bytes32 private constant MINT_TYPEHASH =
         keccak256("Mint(address to,uint256 amount,uint256 nonce,uint256 deadline)");
