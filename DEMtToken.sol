@@ -8,29 +8,33 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-// Für Remix/TronIDE Demo – für TronScan später flatten & lokal einbinden!
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/token/ERC20/ERC20.sol";
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/Pausable.sol";
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/access/AccessControl.sol";
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/cryptography/ECDSA.sol";
-//import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/cryptography/EIP712.sol";
+// Direkte Imports von GitHub (OpenZeppelin v4.9, stabil)
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/token/ERC20/ERC20.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/Pausable.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/access/AccessControl.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/cryptography/ECDSA.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.5.0/contracts/utils/cryptography/EIP712.sol";
 
 contract DEMtToken is ERC20, ERC20Burnable, Pausable, AccessControl, EIP712 {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    string public constant PROJECT_WEBSITE =
-        "https://swap-pool.de";
+    /// @notice Offizielle Projekt-Webseite zur öffentlichen Referenz.
+    string public constant PROJECT_WEBSITE = "https://swap-pool.de";
 
+    /// @notice Whitepaper-Referenz für Transparenz des Bridge-Designs.
     string public constant WHITEPAPER_URL =
         "https://swap-pool.de/docs/DEMt_Bridge_Whitepaper_EN_DE_v2.pdf";
 
+    // EIP-712 typehash für unseren Mint-Request
     bytes32 private constant MINT_TYPEHASH =
         keccak256("Mint(address to,uint256 amount,uint256 nonce,uint256 deadline)");
 
+    // Replay-Schutz
     mapping(bytes32 => bool) public usedMint;
 
+    // Events für die Bridge
     event BridgeMint(address indexed to, uint256 amount);
     event BridgeBurn(address indexed user, uint256 amount);
 
@@ -40,8 +44,11 @@ contract DEMtToken is ERC20, ERC20Burnable, Pausable, AccessControl, EIP712 {
         string memory name_,
         string memory symbol_
     ) ERC20(name_, symbol_) EIP712("DEMtToken", "1") {
+        // Admin: volle Kontrolle, aber kein Minter
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(PAUSER_ROLE, admin_);
+
+        // Bridge: darf minten und brennen
         _grantRole(MINTER_ROLE, bridgeMinter_);
     }
 
@@ -65,6 +72,7 @@ contract DEMtToken is ERC20, ERC20Burnable, Pausable, AccessControl, EIP712 {
         emit BridgeMint(to, amount);
     }
 
+    // Mint mit EIP-712 Signatur (Bridge signiert Ticket, User zahlt Fee)
     function mintWithSig(
         address to,
         uint256 amount,
@@ -91,22 +99,19 @@ contract DEMtToken is ERC20, ERC20Burnable, Pausable, AccessControl, EIP712 {
         emit BridgeMint(to, amount);
     }
 
-    function bridgeBurnFrom(address account, uint256 amount)
-        external
-        onlyRole(MINTER_ROLE)
-    {
+    // Bridge-Burn: Bridge verbrennt DEMt im Auftrag des Users
+    function bridgeBurnFrom(address account, uint256 amount) external onlyRole(MINTER_ROLE) {
         require(amount > 0, "amount=0");
         burnFrom(account, amount);
         emit BridgeBurn(account, amount);
     }
 
-    // NEU für OZ 5.x:
-    // Pausiert alle Transfers/Mints/Burns über den zentralen _update-Hook
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override(ERC20) whenNotPaused {
-        super._update(from, to, value);
+    // Hook: Alle Transfers blockieren, wenn pausiert (OZ 5.x → _update statt _beforeTokenTransfer)
+    function _update(address from, address to, uint256 amount)
+        internal
+        override
+        whenNotPaused
+    {
+        super._update(from, to, amount);
     }
 }
